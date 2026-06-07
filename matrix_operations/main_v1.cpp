@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <numeric>
+#include <sstream>
 
 using namespace std;
 
@@ -138,12 +139,15 @@ public:
     long long getNumerator() const { return numerator; }
     long long getDenominator() const { return denominator; }
     
-    // Вывод в виде дроби
+    // Вывод в виде дроби (исправленная версия без to_string)
     string toString() const {
+        ostringstream oss;
         if (denominator == 1) {
-            return to_string(numerator);
+            oss << numerator;
+        } else {
+            oss << numerator << "/" << denominator;
         }
-        return to_string(numerator) + "/" + to_string(denominator);
+        return oss.str();
     }
     
     // Дружественная функция для вывода
@@ -275,7 +279,9 @@ public:
     
     // Вывод вектора (результата сложения строк)
     void printVector(const vector<Rational>& vec, const string& name) const {
-        cout << "\n" << name << ": ";
+        if (!name.empty()) {
+            cout << "\n" << name << ": ";
+        }
         for (const Rational& val : vec) {
             cout << val << " ";
         }
@@ -312,6 +318,12 @@ public:
         Rational scalar(num, den);
         addScaledRowToRow(targetRow, sourceRow, scalar);
     }
+    
+    // Операция сложения строки с целым числом
+    void addIntegerToRow(int targetRow, int sourceRow, long long integer) {
+        Rational scalar(integer);
+        addScaledRowToRow(targetRow, sourceRow, scalar);
+    }
 
 private:
     void checkRowIndex(int row) const {
@@ -320,6 +332,11 @@ private:
         }
     }
 };
+
+// Функция для вывода разделителя
+void printSeparator() {
+    cout << "\n========================================\n";
+}
 
 int main() {
     setlocale(LC_ALL, "Russian");
@@ -341,7 +358,8 @@ int main() {
     
     int choice;
     do {
-        cout << "\n========== МЕНЮ ОПЕРАЦИЙ СО СТРОКАМИ ==========\n";
+        printSeparator();
+        cout << "========== МЕНЮ ОПЕРАЦИЙ СО СТРОКАМИ ==========\n";
         cout << "1. Сложить две строки и показать результат (в виде дробей)\n";
         cout << "2. Прибавить одну строку к другой\n";
         cout << "3. Прибавить строку, умноженную на число, к другой строке\n";
@@ -353,6 +371,7 @@ int main() {
         cout << "9. Вычесть одну строку из другой\n";
         cout << "10. Показать текущую матрицу\n";
         cout << "11. Прибавить строку, умноженную на дробь (числитель/знаменатель)\n";
+        cout << "12. Прибавить строку, умноженную на целое число\n";
         cout << "0. Выход\n";
         cout << "Ваш выбор: ";
         cin >> choice;
@@ -363,9 +382,18 @@ int main() {
                     int r1, r2;
                     cout << "Введите индексы строк (1-" << rows << "): ";
                     cin >> r1 >> r2;
+                    if (r1 < 1 || r1 > rows || r2 < 1 || r2 > rows) {
+                        cout << "Ошибка: неверные индексы строк!\n";
+                        break;
+                    }
                     vector<Rational> result = matrix.addRows(r1 - 1, r2 - 1);
                     cout << "\nРезультат сложения строк " << r1 << " и " << r2 << " (в виде дробей):\n";
-                    matrix.printVector(result, "");
+                    cout << "[ ";
+                    for (size_t i = 0; i < result.size(); i++) {
+                        cout << result[i];
+                        if (i < result.size() - 1) cout << ", ";
+                    }
+                    cout << " ]" << endl;
                     break;
                 }
                 case 2: {
@@ -394,22 +422,44 @@ int main() {
                 case 4: {
                     vector<Rational> sum = matrix.sumOfAllRows();
                     cout << "\nСумма всех строк (в виде дробей):\n";
-                    matrix.printVector(sum, "");
+                    cout << "[ ";
+                    for (size_t i = 0; i < sum.size(); i++) {
+                        cout << sum[i];
+                        if (i < sum.size() - 1) cout << ", ";
+                    }
+                    cout << " ]" << endl;
                     break;
                 }
                 case 5: {
                     int k;
                     cout << "Сколько строк сложить: ";
                     cin >> k;
+                    if (k <= 0 || k > rows) {
+                        cout << "Ошибка: неверное количество строк!\n";
+                        break;
+                    }
                     vector<int> indices(k);
                     cout << "Введите индексы строк (1-" << rows << "): ";
+                    bool valid = true;
                     for (int i = 0; i < k; i++) {
                         cin >> indices[i];
+                        if (indices[i] < 1 || indices[i] > rows) {
+                            valid = false;
+                        }
                         indices[i]--; // переводим в 0-индексацию
+                    }
+                    if (!valid) {
+                        cout << "Ошибка: неверные индексы строк!\n";
+                        break;
                     }
                     vector<Rational> sum = matrix.sumOfSelectedRows(indices);
                     cout << "\nСумма выбранных строк (в виде дробей):\n";
-                    matrix.printVector(sum, "");
+                    cout << "[ ";
+                    for (size_t i = 0; i < sum.size(); i++) {
+                        cout << sum[i];
+                        if (i < sum.size() - 1) cout << ", ";
+                    }
+                    cout << " ]" << endl;
                     break;
                 }
                 case 6: {
@@ -466,7 +516,24 @@ int main() {
                     cin >> num;
                     cout << "Введите знаменатель дроби: ";
                     cin >> den;
+                    if (den == 0) {
+                        cout << "Ошибка: знаменатель не может быть нулем!\n";
+                        break;
+                    }
                     matrix.addFractionRowToRow(target - 1, source - 1, num, den);
+                    matrix.printMatrix("Матрица после операции");
+                    break;
+                }
+                case 12: {
+                    int target, source;
+                    long long integer;
+                    cout << "К какой строке прибавить (1-" << rows << "): ";
+                    cin >> target;
+                    cout << "Какую строку прибавить (1-" << rows << "): ";
+                    cin >> source;
+                    cout << "Введите целое число: ";
+                    cin >> integer;
+                    matrix.addIntegerToRow(target - 1, source - 1, integer);
                     matrix.printMatrix("Матрица после операции");
                     break;
                 }
@@ -482,5 +549,6 @@ int main() {
         
     } while (choice != 0);
     
+    cout << "\nПрограмма завершена. Спасибо за использование!\n";
     return 0;
 }
